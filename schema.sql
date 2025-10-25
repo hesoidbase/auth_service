@@ -16,7 +16,7 @@ CREATE TABLE departments (
 -- Tenants table (created_by will be added later)
 CREATE TABLE tenants (
     tenant_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255),
+    name VARCHAR(255) UNIQUE,
     code VARCHAR(255) UNIQUE,
     type TENANT_TYPE DEFAULT 'school',
     registration_number VARCHAR(255),
@@ -70,7 +70,7 @@ CREATE TABLE users (
 
 -- Add created_by and updated_by FKs to tenants AFTER users table exists
 ALTER TABLE tenants
-ADD COLUMN created_by UUID NOT NULL,
+ADD COLUMN created_by UUID,
 ADD COLUMN updated_by UUID,
 ADD CONSTRAINT fk_tenants_created_by FOREIGN KEY (created_by) REFERENCES users(user_id),
 ADD CONSTRAINT fk_tenants_updated_by FOREIGN KEY (updated_by) REFERENCES users(user_id);

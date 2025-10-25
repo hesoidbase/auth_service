@@ -1,9 +1,12 @@
-from pydantic import BaseModel, Json, field_validator
+from pydantic import BaseModel, Json, field_validator, ConfigDict
 from app.utils.enums import TenantType, Plan, TenantStatus
 from typing import Dict, Any, Optional
 from datetime import datetime
 
 class CreateTenant(BaseModel):
+
+    model_config = ConfigDict(extra='forbid')
+
     name: str
     code: str
     type: TenantType
@@ -24,8 +27,6 @@ class CreateTenant(BaseModel):
             raise ValueError('Field cannot be empty')
         return input.strip()
     
-
-
 
 class TenantResponse(CreateTenant):
     tenant_id: str
