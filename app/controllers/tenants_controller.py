@@ -7,4 +7,4 @@ class TenantController:
     @staticmethod
     async def create_tenant(data: CreateTenant, db: AsyncSession):
         tenant:TenantResponse = await TenantService.create_tenant(data,db)
-        return { "info": tenant["id"]}
+        return tenant
