@@ -1,0 +1,159 @@
+SQL:  
+===
+ 
+## user_id UUID REFERENCES users(id) ON DELETE CASCADE, - If a user is deleted, all their orders are automatically deleted.
+
+## Learn to attach triggeres 
+
+Architecture: 
+=============
+
+Multi-Tenant SaaS Architecture Notes: 
+=====================================
+
+
+1. User visits tenant URL (e.g., <insitutionid>.yourapp.com).
+
+2. Login form asks for email + password only.
+
+3. Backend resolves tenant from subdomain.
+
+4. User is authenticated in tenant-specific context:
+    1. DB-per-tenant → connect to tenant-specific database
+
+5. Issue JWT containing:
+
+{
+  "sub": "user_id",
+  "tenant_id": "boomii",
+  "role": "student",
+  "exp": 1234567890
+}
+
+6. Middleware reads JWT → injects tenant context for all APIs.
+
+
+ROLES: 
+=====
+
+1. Super Admin = 0
+2. Admin = 1
+3. Faculty = 2
+4. Student = 3
+5. Parent = 4
+
+TABLES: 
+=======
+
+USERS: 
+
+| **Column**                                                         | **Definition**                                    |
+| ------------------------------------------------------------------ | ------------------------------------------------- |
+| `user_id` (UUID, PK)                                               | Unique user identifier.                           |
+| `tenant_id` (UUID, FK)                                             | Institution/college identifier.                   |
+| `email` (VARCHAR, unique per tenant)                               | User’s email, used for login.                     |
+| `username` (VARCHAR, optional)                                     | Institution-specific ID (student ID, faculty ID). |
+| `first_name` (VARCHAR)                                             | First name.                                       |
+| `last_name` (VARCHAR)                                              | Last name.                                        |
+| `dob` (DATE)                                                       | Date of birth.                                    |
+| `gender` (ENUM)                                                    | Male, female, other, prefer_not_say.              |
+| `phone_number` (VARCHAR)                                           | For SMS OTP / parent contact.                     |
+| `status` (ENUM: active, inactive, suspended, terminated, archived) | Business lifecycle.                               |
+| `department_id` (UUID, FK)                                         | Department reference.                             |
+| `class_id` (UUID, FK)                                              | Class/section reference.                          |
+| `emergency_contact` (JSONB)                                        | Parent/guardian contacts.                         |
+| `address` (JSONB)                                                  | Address details.                                  |
+| `created_at` (TIMESTAMP)                                           | Created timestamp.                                |
+| `updated_at` (TIMESTAMP)                                           | Last updated timestamp.                           |
+| `created_by` (UUID, FK to user_id)                                 | Who created this record.                          |
+| `deleted_at` (TIMESTAMP)                                           | Soft delete timestamp.                            |
+
+
+SECURITY
+
+| **Column**                           | **Definition**                   |
+| ------------------------------------ | -------------------------------- |
+| `security_id` (UUID, PK)             | Unique row ID.                   |
+| `user_id` (UUID, FK → users.user_id) | Links to the user.               |
+| `password_hash` (TEXT)               | Hashed password (Argon2/bcrypt). |
+| `password_changed_at` (TIMESTAMP)    | Last password update.            |
+| `failed_attempts` (INT)              | Failed login attempts count.     |
+| `is_locked` (BOOLEAN)                | Whether account is locked.       |
+| `locked_at` (TIMESTAMP)              | When lock happened.              |
+| `locked_until` (TIMESTAMP)           | Auto-unlock time.                |
+| `locked_by` (UUID, FK to user_id)    | Who/admin locked the account.    |
+| `mfa_enabled` (BOOLEAN)              | Whether MFA is enabled.          |
+| `mfa_secret` (TEXT, encrypted)       | TOTP secret for MFA.             |
+| `recovery_codes` (JSONB)             | MFA recovery codes.              |
+| `last_login_at` (TIMESTAMP)          | Last successful login.           |
+| `last_login_ip` (VARCHAR)            | IP of last login.                |
+| `last_login_device` (VARCHAR)        | Device/browser used.             |
+| `is_email_verified` (BOOLEAN)        | Whether email is verified.       |
+| `email_verified_at` (TIMESTAMP)      | When verified.                   |
+| `phone_verified` (BOOLEAN)           | Whether phone is verified.       |
+
+
+ROLES:
+
+| **Column**                                                                               | **Definition**                             |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `role_id` (UUID, PK)                                                                     | Unique role ID.                            |
+| `user_id` (UUID, FK → users.user_id)                                                     | User assigned to role.                     |
+| `tenant_id` (UUID, FK)                                                                   | Institution context.                       |
+| `role_name` (ENUM: super_admin, admin, faculty, student, parent, support_staff, auditor) | Role name.                                 |
+| `scope` (JSONB)                                                                          | Optional scope (e.g., "department:maths"). |
+| `assigned_at` (TIMESTAMP)                                                                | When role was assigned.                    |
+| `assigned_by` (UUID, FK to user_id)                                                      | Who assigned it.                           |
+
+
+AUDIT LOGS
+==========
+
+| **Column**                           | **Definition**                                                  |
+| ------------------------------------ | --------------------------------------------------------------- |
+| `log_id` (UUID, PK)                  | Unique audit entry.                                             |
+| `user_id` (UUID, FK → users.user_id) | Who performed the action.                                       |
+| `tenant_id` (UUID, FK)               | Institution context.                                            |
+| `action` (TEXT)                      | What action was performed (login, grade update, user creation). |
+| `entity_type` (TEXT)                 | Type of entity affected (student, course, exam).                |
+| `entity_id` (UUID)                   | Entity primary key affected.                                    |
+| `ip_address` (VARCHAR)               | IP from which action happened.                                  |
+| `user_agent` (VARCHAR)               | Device/browser info.                                            |
+| `metadata` (JSONB)                   | Additional context (before/after values).                       |
+| `timestamp` (TIMESTAMP)              | When it happened.                                               |
+
+
+DEPARTMENT
+==========
+
+| **Column**                                                                      | **Definition / Purpose**                                                       |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `department_id` (UUID, PK)                                                      | Unique ID for the department                                                   |
+| `name` (VARCHAR)                                                                | Department Name.                                                               |                                                
+
+
+
+
+
+INSTITUTION 
+===========
+
+| **Column**                                                                      | **Definition / Purpose**                                                       |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `institution_id` (UUID, PK)                                                     | Unique ID for the institution (used in URLs like `<institution>.yourapp.com`). |
+| `name` (VARCHAR)                                                                | Full name (e.g., "Boomii International School").                               |
+| `code` (VARCHAR, unique)                                                        | Short code / slug (e.g., `boomii` → used in subdomain).                        |
+| `type` (ENUM: school, college, university, coaching_center, training_institute) | Type of institution.                                                           |
+| `registration_number` (VARCHAR)                                                 | Official registration/accreditation number.                                    |
+| `affiliation` (VARCHAR)                                                         | Affiliated board/university (e.g., CBSE, AICTE, UGC).                          |
+| `logo_url` (TEXT)                                                               | Institution logo for branding.                                                 |
+| `contact_email` (VARCHAR)                                                       | Official email ([support@institution.edu](mailto:support@institution.edu)).    |
+| `contact_phone` (VARCHAR)                                                       | Official contact number.                                                       |
+| `address` (JSONB)                                                               | Full address details (street, city, state, country, postal_code).              |
+| `subscription_plan` (ENUM: free, standard, premium, enterprise)                 | SaaS subscription level.                                                       |                     |
+| `feature_flags` (JSONB)                                                         | Flags to enable/disable modules (exams, library, hostel, etc.).                |
+| `status` (ENUM: active, inactive, suspended, archived)                          | Lifecycle state of the institution.                                            |
+| `created_at` (TIMESTAMP)                                                        | Institution creation time.                                                     |
+| `updated_at` (TIMESTAMP)                                                        | Last update time.                                                              |
+| `created_by` (UUID, FK → users.user_id)                                         | Super admin who onboarded this institution.                                    |
+| `deleted_at` (TIMESTAMP)                                                        | Soft delete timestamp.                                                         |
